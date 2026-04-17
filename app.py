@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from maze_generator import generate_maze
 
 app = Flask(__name__)
@@ -9,15 +9,22 @@ def home():
 
 @app.route('/api/new-game')
 def new_game():
-    # On génère un labyrinthe de 21x21 (doit être impair)
-    maze = generate_maze(21, 21)
+    level = request.args.get('level', 1, type=int)
+    
+    base_size = 17
+    size = base_size + (level * 4) 
+    
+    w, h = size, size
+    maze = generate_maze(w, h)
+    
     return jsonify({
         "maze": maze,
-        "width": 21,
-        "height": 21,
+        "width": w,
+        "height": h,
         "start": [1, 1],
-        "end": [19, 19]
+        "end": [w-2, h-2],
+        "level": level
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

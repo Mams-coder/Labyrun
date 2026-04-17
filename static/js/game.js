@@ -240,25 +240,54 @@ async function initGame() {
     }
 }
 
-// --- NOUVEAU : LOGIQUE DE DÉPLACEMENT CONTINU ---
+let currentLevel = 1;
+
+async function initGame(resetToLevel1 = false) {
+    // Si on a cliqué sur le bouton recommencer, on remet le niveau à 1
+    if (resetToLevel1) {
+        currentLevel = 1;
+    }
+
+    try {
+        const response = await fetch(`/api/new-game?level=${currentLevel}`);
+        const data = await response.json();
+        
+        mazeGrid = data.maze;
+        player = { x: data.start[0], y: data.start[1] };
+        goal = { x: data.end[0], y: data.end[1] };
+        particles = []; 
+
+        const levelDisplay = document.getElementById('levelDisplay');
+        if (levelDisplay) levelDisplay.innerText = `NIVEAU ${currentLevel}`;
+
+        realX = player.x;
+        realY = player.y;
+        isMoving = false;
+        moveDx = 0;
+        moveDy = 0;
+
+        CELL_SIZE = 420 / data.width; 
+        canvas.width = data.width * CELL_SIZE;
+        canvas.height = data.height * CELL_SIZE;
+    } catch (e) {
+        console.error("Erreur serveur :", e);
+    }
+}
+
 function updatePlayer() {
     if (!isMoving) return;
 
-    // L'orbe avance visuellement
     realX += moveDx * SPEED;
     realY += moveDy * SPEED;
 
-    // Vérifie si on a atteint (ou dépassé) la case cible
     if ((moveDx > 0 && realX >= player.x + 1) ||
         (moveDx < 0 && realX <= player.x - 1) ||
         (moveDy > 0 && realY >= player.y + 1) ||
         (moveDy < 0 && realY <= player.y - 1)) {
         
-        // On valide la nouvelle case
         player.x += moveDx;
         player.y += moveDy;
         
-        // On "clipe" la position pour être parfaitement centré
         realX = player.x;
         realY = player.y;
 
@@ -268,11 +297,8 @@ function updatePlayer() {
             return;
         }
 
-        // --- DÉTECTION DU PROCHAIN ARRÊT ---
-        // 1. Est-ce qu'on peut continuer tout droit ?
         const canGoStraight = mazeGrid[player.y + moveDy] && mazeGrid[player.y + moveDy][player.x + moveDx] === 0;
         
-        // 2. Est-ce qu'on est à un carrefour ? (Peut-on tourner ?)
         let canTurn = false;
         if (moveDx !== 0) { // Si on bouge horizontalement, on vérifie haut/bas
             canTurn = (mazeGrid[player.y - 1] && mazeGrid[player.y - 1][player.x] === 0) || 
@@ -289,7 +315,7 @@ function updatePlayer() {
     }
 }
 
-// --- MOTEUR DE JEU ---
+
 function gameLoop() {
     updatePlayer(); // On met à jour la position en glissade
     draw(); 
@@ -407,8 +433,9 @@ function movePlayer(dx, dy) {
 function checkWin() {
     if (player.x === goal.x && player.y === goal.y) {
         setTimeout(() => {
-            alert("☢️ Niveau terminé !");
-            initGame();
+            currentLevel++; 
+            alert(`☢️ Niveau terminé ! Préparation du NIVEAU ${currentLevel}...`);
+            initGame(false); // false = on ne reset pas le niveau
         }, 100);
     }
 }
