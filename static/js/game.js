@@ -415,30 +415,157 @@ function draw() {
     ctx.shadowBlur = 0; 
 }
 
-// --- CONTRÔLES MODIFIÉS ---
+let currentLanguage = ""; // Va stocker 'JavaScript', 'Python', etc.
+
+function checkWin() {
+    if (player.x === goal.x && player.y === goal.y) {
+        // On arrête le joueur pour qu'il ne glisse pas plus loin
+        isMoving = false; 
+        
+        setTimeout(() => {
+            // C'EST ICI LA MAGIE : On lance le piratage au lieu de l'alerte !
+            triggerHack();
+        }, 150);
+    }
+}
+
+// 1. La fonction appelée par les boutons de l'écran d'accueil
+function startGame(lang) {
+    currentLanguage = lang;
+    currentLevel = 1;
+    
+    // On cache l'accueil, on affiche le jeu
+    document.getElementById('screen-selection').classList.add('hidden');
+    document.getElementById('screen-game').classList.remove('hidden');
+    document.getElementById('screen-game').classList.add('flex'); // Pour Tailwind
+    
+    // On met à jour le titre visuellement
+    document.getElementById('gameTitle').innerText = `Spécialité : ${lang}`;
+    
+    // On lance le labyrinthe
+    initGame();
+}
+
+
+async function triggerHack() {
+    // 1. On affiche la fenêtre tout de suite pour voir ce qu'il se passe
+    document.getElementById('quizModal').classList.remove('hidden');
+    document.getElementById('quizQuestion').innerText = "Connexion au pare-feu en cours...";
+    document.getElementById('quizOptions').innerHTML = '';
+
+    try {
+        const response = await fetch(`/api/question?lang=${currentLanguage}`);
+        
+        // Si le serveur a planté (Erreur 500 par exemple)
+        if (!response.ok) {
+            throw new Error(`Le serveur Python a renvoyé une erreur ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // 2. Si tout va bien, on affiche la question
+        document.getElementById('quizLang').innerText = `💻 DÉFI : ${data.lang}`;
+        document.getElementById('quizQuestion').innerText = data.q;
+
+        const optionsContainer = document.getElementById('quizOptions');
+
+        // 3. On crée les boutons
+        data.options.forEach((opt, index) => {
+            const btn = document.createElement('button');
+            btn.className = "w-full py-3 px-4 bg-gray-800 hover:bg-emerald-900 border border-gray-600 hover:border-emerald-500 rounded text-gray-200 transition-all text-left flex items-center gap-3 group";
+            btn.innerHTML = `<span class="text-emerald-500 font-bold group-hover:text-white">></span> ${opt}`;
+            btn.onclick = () => verifyAnswer(index, data.answer);
+            optionsContainer.appendChild(btn);
+        });
+
+    } catch (e) {
+        // 4. S'IL Y A UN PROBLÈME, ON L'AFFICHE !
+        console.error("Détail de l'erreur :", e);
+        document.getElementById('quizLang').innerText = "⚠️ ERREUR CRITIQUE";
+        document.getElementById('quizLang').classList.replace('text-emerald-400', 'text-red-500');
+        document.getElementById('quizQuestion').innerText = `Impossible de récupérer la question.\nCause : ${e.message}\n\n👉 Regarde ton terminal Python !`;
+        
+        // On met un bouton pour s'échapper
+        const optionsContainer = document.getElementById('quizOptions');
+        optionsContainer.innerHTML = `<button onclick="document.getElementById('quizModal').classList.add('hidden')" class="w-full py-3 bg-red-600 rounded font-bold text-white hover:bg-red-500">Fermer et réessayer</button>`;
+    }
+}
+let comboCount = 0
+let isHackModeActive = false;
+
+// Fonction pour vérifier si la réponse choisie est la bonne
+// Fonction pour vérifier la réponse choisie
+function verifyAnswer(selectedIndex, correctIndex) {
+    if (selectedIndex === correctIndex) {
+        // --- GAGNÉ ---
+        document.getElementById('quizModal').classList.add('hidden');
+        currentLevel++; 
+        
+        // --- GESTION DU COMBO ---
+        comboCount++; // On ajoute 1 au compteur de réussite
+        if (comboCount >= 3) {
+            activerModeHack(); // 3 bonnes réponses de suite = Super Pouvoirs !
+        }
+
+        setTimeout(() => {
+            initGame(false); 
+        }, 300);
+        
+    } else {
+        // --- PERDU ---
+        alert("❌ Accès refusé. Erreur de syntaxe.");
+        document.getElementById('quizModal').classList.add('hidden');
+        
+        // --- RESET DU COMBO ---
+        comboCount = 0; // Oups, on retombe à zéro !
+        isHackModeActive = false; // On perd le pouvoir
+        
+        // On repousse le joueur
+        player.x -= moveDx;
+        player.y -= moveDy;
+        realX = player.x;
+        realY = player.y;
+    }
+}
+
+// Fonction qui déclenche les super-pouvoirs
+function activerModeHack() {
+    isHackModeActive = true;
+    
+    // On met à jour l'affichage en haut de l'écran pour prévenir le joueur
+    const levelDisplay = document.getElementById('levelDisplay');
+    if (levelDisplay) {
+        levelDisplay.innerHTML = `NIVEAU ${currentLevel} <span class="text-red-500 font-black ml-2 animate-pulse">🔥 OVERDRIVE</span>`;
+    }
+}
+
+
 function movePlayer(dx, dy) {
-    if (isMoving) return; // Si l'orbe glisse déjà, on ignore les touches
+    if (isMoving) return; 
 
     const newX = player.x + dx;
     const newY = player.y + dy;
 
-    // Si le chemin direct est libre, on lance la glissade !
-    if (mazeGrid[newY] && mazeGrid[newY][newX] === 0) { 
-        isMoving = true;
-        moveDx = dx;
-        moveDy = dy;
+    // On vérifie d'abord qu'on ne sort pas complètement de la grille
+    if (mazeGrid[newY] && mazeGrid[newY][newX] !== undefined) {
+        
+        // --- NOUVEAU : LE POUVOIR BRISE-MUR ---
+        // Si le mode Hack est actif ET qu'il y a un mur (1) devant nous
+        if (isHackModeActive && mazeGrid[newY][newX] === 1) {
+            // On pirate la grille : on transforme le mur en chemin !
+            mazeGrid[newY][newX] = 0; 
+        }
+
+        // Si le chemin direct est libre (ou vient d'être cassé grâce au hack)
+        if (mazeGrid[newY][newX] === 0) { 
+            isMoving = true;
+            moveDx = dx;
+            moveDy = dy;
+        }
     }
 }
 
-function checkWin() {
-    if (player.x === goal.x && player.y === goal.y) {
-        setTimeout(() => {
-            currentLevel++; 
-            alert(`☢️ Niveau terminé ! Préparation du NIVEAU ${currentLevel}...`);
-            initGame(false); // false = on ne reset pas le niveau
-        }, 100);
-    }
-}
+
 
 document.addEventListener('keydown', (e) => {
     if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
