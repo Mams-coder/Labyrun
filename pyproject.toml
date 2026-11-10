@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labyrun"
+version = "1.0.0"
+description = "Jeu d'évasion et de programmation dans un labyrinthe procédural."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Labyrun Dev Team" }
+]
+dependencies = [
+    "Flask>=3.0.0",
+    "Werkzeug>=3.0.0",
+    "Jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "flake8>=7.0.0",
+    "mypy>=1.9.0",
+]
+
+[project.scripts]
+labyrun = "src.labyrun.web.app:create_app"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
