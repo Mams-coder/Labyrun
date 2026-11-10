@@ -1,4 +1,4 @@
-# 🎮 Labyrun — Jeu d'Évasion Procédurale & Hack de Pare-feu
+# 🎮 Labyrun - Jeu d'Évasion Procédurale
 
 ```text
 ██╗      █████╗ ██████╗ ██╗   ██╗██████╗ ██╗   ██╗███╗   ██╗
