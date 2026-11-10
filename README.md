@@ -1,4 +1,4 @@
-# 🎮 Labyrun — Jeu d'Évasion Procédurale
+# 🎮 Labyrun - Jeu d'Évasion Procédurale
 
 ```text
 ██╗      █████╗ ██████╗ ██╗   ██╗██████╗ ██╗   ██╗███╗   ██╗
